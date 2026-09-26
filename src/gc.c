@@ -69,7 +69,6 @@ static void mark_objs(struct vm *vm, struct obj *o, struct gc_result *res)
 		break;
 
 	case OBJ_STR_LITERAL:
-		/* TODO: mark str_literal */
 		break;
 	}
 }

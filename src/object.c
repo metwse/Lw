@@ -29,6 +29,7 @@ void obj_free(struct obj *o)
 		break;
 
 	case OBJ_STR_LITERAL:
+		str_ref_destroy(AS_STR_LITERAL(o)->str_ref);
 		break;
 	}
 
@@ -55,7 +56,9 @@ struct obj *obj_clone(struct vm *vm, const struct obj *o)
 		break;
 
 	case OBJ_STR_LITERAL:
-		return (struct obj *) obj_str_literal_new(vm, AS_STR_LITERAL(o)->id);
+		return (struct obj *)
+			obj_str_literal_new(vm,
+				str_ref_clone(AS_STR_LITERAL(o)->str_ref));
 	}
 
 	return NULL;  // unreachable
@@ -83,11 +86,9 @@ void obj_print(const struct obj *o, const struct vm *vm)
 		const char *out_chars;
 		size_t out_len;
 
-		Lw_assert(str_pool_get_chars(vm->strings,
-					     AS_STR_LITERAL(o)->id,
-					     &out_chars,
-					     &out_len),
-			    "str literal not found, possibly GC'ed!");
+		str_ref_get_chars(AS_STR_LITERAL(o)->str_ref,
+				  &out_chars,
+				  &out_len);
 		printf("%.*s", (int) out_len, out_chars);
 		break;
 	}
@@ -108,7 +109,8 @@ bool obj_is_equal(const struct obj *a, const struct obj *b)
 		return a == b;
 
 	case OBJ_STR_LITERAL:
-		return AS_STR_LITERAL(a)->id == AS_STR_LITERAL(b)->id;
+		return AS_STR_LITERAL(a)->str_ref.id ==
+			AS_STR_LITERAL(b)->str_ref.id;
 	}
 
 	return false;  // unreachable
@@ -187,13 +189,14 @@ struct obj_native_function *obj_native_function_new(struct vm *vm,
 	return obj;
 }
 
-struct obj_str_literal *obj_str_literal_new(struct vm *vm, uint32_t id)
+struct obj_str_literal *obj_str_literal_new(struct vm *vm,
+					    struct str_ref str_ref)
 {
 	obj_new(str_literal);
 
 	*obj = (struct obj_str_literal) {
 		.obj = { .type = OBJ_STR_LITERAL },
-		.id = id,
+		.str_ref = str_ref
 	};
 
 	return obj;

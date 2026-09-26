@@ -14,11 +14,11 @@
 
 
 
-static uint32_t resolve_local(struct compiler *, uint32_t);
-static uint32_t resolve_upvalue(struct compiler *, uint32_t);
+static uint32_t resolve_local(struct compiler *, struct str_ref);
+static uint32_t resolve_upvalue(struct compiler *, struct str_ref);
 static uint32_t resolve_and_save_global_reference(struct compiler *,
 					          struct chunk *,
-						  uint32_t);
+						  struct str_ref);
 static uint32_t add_upvalue(struct compiler *, uint32_t, bool);
 
 
@@ -30,12 +30,17 @@ void compiler_xinit(struct compiler *current,
 	current->vm = vm;
 	current->line = 0;
 	current->scope_depth = 0;
+
 	fstack_locals_xinit(&current->locals);
 	fstack_upvalues_xinit(&current->upvalues);
 }
 
 void compiler_destroy(struct compiler *current)
 {
+	/* destroy string references in function arguments */
+	for (size_t i = 0; i < fstack_locals_len(&current->locals); i++)
+		str_ref_destroy(fstack_locals_at_mut(&current->locals, i)->str_ref);
+
 	fstack_locals_destroy(&current->locals);
 	fstack_upvalues_destroy(&current->upvalues);
 }
@@ -43,23 +48,27 @@ void compiler_destroy(struct compiler *current)
 void compiler_emit_variable_inst(struct compiler *current,
 				 struct chunk *c,
 				 bool is_set,
-				 uint32_t str_id)
+				 struct str_ref str_ref)
 {
 	enum opcode set_op = OP_SET_GLOBAL;
 	enum opcode get_op = OP_GET_GLOBAL;
 
 	uint32_t arg;
-	if ((arg = resolve_local(current, str_id)) != UINT_MAX) {
+	if ((arg = resolve_local(current, str_ref)) != UINT_MAX) {
 		/* arg is local variable id */
 		set_op = OP_SET_LOCAL;
 		get_op = OP_GET_LOCAL;
-	} else if ((arg = resolve_upvalue(current, str_id)) != UINT_MAX) {
+
+		str_ref_destroy(str_ref);
+	} else if ((arg = resolve_upvalue(current, str_ref)) != UINT_MAX) {
 		/* arg is upvalue variable id */
 		set_op = OP_SET_UPVALUE;
 		get_op = OP_GET_UPVALUE;
+
+		str_ref_destroy(str_ref);
 	} else {
 		/* arg is global id */
-		arg = resolve_and_save_global_reference(current, c, str_id);
+		arg = resolve_and_save_global_reference(current, c, str_ref);
 	}
 
 	enum opcode op = is_set ? set_op : get_op;
@@ -69,17 +78,17 @@ void compiler_emit_variable_inst(struct compiler *current,
 
 void compiler_emit_define_variable_inst(struct compiler *current,
 					struct chunk *c,
-					uint32_t str_id)
+					struct str_ref str_ref)
 {
 
-	uint32_t local_slot = resolve_local(current, str_id);
+	uint32_t local_slot = resolve_local(current, str_ref);
 	if (local_slot == UINT16_MAX || current->scope_depth == 0) {
 		uint32_t global_id = resolve_and_save_global_reference(current,
 								       c,
-								       str_id);
+								       str_ref);
 		emit_inst_u8or24(OP_DEFINE_GLOBAL, global_id);
 	} else {
-		compiler_define_local(current, str_id);
+		compiler_define_local(current, str_ref);
 	}
 }
 
@@ -135,21 +144,22 @@ void compiler_end_scope(struct compiler *current, struct chunk *c)
 	while (fstack_locals_len(&current->locals) > 0 &&
 	       (local = fstack_locals_top(&current->locals)) &&
 	       local->depth == current->scope_depth) {
-		fstack_locals_pop(&current->locals);
-
 		if (local->is_captured)
 			emit_inst(OP_CLOSE_UPVALUE);
 		else
 			emit_inst(OP_POP);
+
+		str_ref_destroy(local->str_ref);
+		fstack_locals_pop(&current->locals);
 	}
 	current->scope_depth--;
 }
 
-void compiler_define_local(struct compiler *current, uint32_t str_id)
+void compiler_define_local(struct compiler *current, struct str_ref str_ref)
 {
 	fstack_locals_xpush(&current->locals,
 			    &(struct local) {
-				    .str_id = str_id,
+				    .str_ref = str_ref,
 				    .depth = current->scope_depth,
 				    .is_captured = false
 			    });
@@ -178,12 +188,12 @@ static uint32_t add_upvalue(struct compiler *current,
 	return upvalue_count;
 }
 
-static uint32_t resolve_upvalue(struct compiler *current, uint32_t str_id)
+static uint32_t resolve_upvalue(struct compiler *current, struct str_ref str_ref)
 {
 	if (current->enclosing == NULL)
 		return UINT_MAX;
 
-	uint32_t local = resolve_local(current->enclosing, str_id);
+	uint32_t local = resolve_local(current->enclosing, str_ref);
 	if (local != UINT_MAX) {
 		struct local *local_v =
 			fstack_locals_at_mut(&current->enclosing->locals, local);
@@ -191,19 +201,19 @@ static uint32_t resolve_upvalue(struct compiler *current, uint32_t str_id)
 		return add_upvalue(current, local, true);
 	}
 
-	uint32_t upvalue = resolve_upvalue(current->enclosing, str_id);
+	uint32_t upvalue = resolve_upvalue(current->enclosing, str_ref);
 	if (upvalue != UINT_MAX)
 		return add_upvalue(current, upvalue, false);
 
 	return UINT_MAX;
 }
 
-static uint32_t resolve_local(struct compiler *current, uint32_t str_id)
+static uint32_t resolve_local(struct compiler *current, struct str_ref str_ref)
 {
 	for (size_t i = fstack_locals_len(&current->locals); i > 0; i--) {
 		const struct local *var =
 			fstack_locals_at(&current->locals, i - 1);
-		if (var->str_id == str_id)
+		if (var->str_ref.id == str_ref.id)
 			return i - 1;
 	}
 
@@ -212,10 +222,10 @@ static uint32_t resolve_local(struct compiler *current, uint32_t str_id)
 
 static uint32_t resolve_and_save_global_reference(struct compiler *current,
 						  struct chunk *c,
-						  uint32_t str_id)
+						  struct str_ref str_ref)
 {
 	uint32_t global_id = globals_xget_global_id(current->vm->globals,
-						    str_id);
+						    str_ref);
 
 	for (size_t i = 0;
 	     i < fstack_chunk_referenced_global_ids_len(&c->referenced_global_ids);

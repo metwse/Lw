@@ -149,8 +149,8 @@ static void collect_ident_or_keyword(struct scanner *s,
 	if (keyword_id_ptr)
 		return_tk(*keyword_id_ptr);
 
-	uint32_t str_id = str_pool_xget_id(s->strings, start, ident_len);
-	out_seminfo->seminfo.str_id = str_id;
+	struct str_ref str_ref = str_pool_xget_ref(s->strings, start, ident_len);
+	out_seminfo->seminfo.str_ref = str_ref;
 
 	return_tk(TK_IDENT);
 }
@@ -236,10 +236,10 @@ static void collect_str(struct scanner *s,
 			start++;
 		}
 
-		uint32_t str_literal_id = str_pool_xget_id(s->strings,
+		struct str_ref str_ref = str_pool_xget_ref(s->strings,
 							   escaped_str,
 							   escaped_str_len);
-		out_seminfo->seminfo.str_id = str_literal_id;
+		out_seminfo->seminfo.str_ref = str_ref;
 		return_tk(TK_STR);
 	}
 

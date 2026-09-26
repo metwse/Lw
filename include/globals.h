@@ -1,7 +1,7 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-
+#include "string_pool.h"  // IWYU pragma: keep, global_id_to_str_ref
 #include "value.h"
 
 #include <stdbool.h>
@@ -14,10 +14,10 @@
 #define T uint32_t, uint32_t, str_id_to_global_id
 #include "../vendor/libfun/include/hmap.h"
 
-#define T uint32_t, uint32_t, global_id_to_str_id
+#define T uint32_t, struct str_ref, global_id_to_str_ref
 #include "../vendor/libfun/include/hmap.h"
 
-#define T uint32_t, bool, uninitialized_globals
+#define T uint32_t, bool, undefined_globals
 #include "../vendor/libfun/include/hmap.h"
 
 #define T uint32_t, recycle_global_ids
@@ -28,23 +28,18 @@
 struct globals {
 	/* global_id -> value */
 	struct fhmap_global_vals global_vals;
-	/* global_id -> str_id */
-	struct fhmap_str_id_to_global_id m1;
 	/* str_id -> global_id */
-	struct fhmap_global_id_to_str_id m2;
-	/* global_id -> is marked */
-	struct fhmap_uninitialized_globals m3;
+	struct fhmap_str_id_to_global_id m1;
+	/* global_id -> str_ref */
+	struct fhmap_global_id_to_str_ref m2;
+	/* global_id -> is marked
+	 * Map of declared but undefined globals */
+	struct fhmap_undefined_globals m3;
 
 	/* Reassign previously released ID's instead of incrementing last_id. */
 	struct fstack_recycle_global_ids recycle_global_ids;
 	uint32_t last_id;
 };
-
-/* Noes on garbage collection:
- * str_id -> global_id is subject to garbage collection if the globas has been
- * deleted and there is no chunk refering to that global. Chunks should keep
- * track of referenced globals, and if a global is not initialized and no chunk
- * references it, its str_id - global_id mapping will be removed. */
 
 
 /* Creates a new global variable table. */

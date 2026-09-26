@@ -2,6 +2,7 @@
 #define COMPILER_INTERNAL
 
 #include "../include/chunk.h"
+#include "../include/string_pool.h"
 
 #include <stdint.h>
 
@@ -43,10 +44,10 @@
 		emit_inst_args(opcode, &(uint8_t) { num }); \
 	} while (0)
 
-#define emit_inst_set(str_id) \
-	compiler_emit_variable_inst(current, c, true, str_id)
-#define emit_inst_get(str_id) \
-	compiler_emit_variable_inst(current, c, false, str_id)
+#define emit_inst_set(str_ref) \
+	compiler_emit_variable_inst(current, c, true, str_ref)
+#define emit_inst_get(str_ref) \
+	compiler_emit_variable_inst(current, c, false, str_ref)
 
 #define update_line(tk) do { \
 		current->line = ((struct seminfo *) rseminfo(tk))->line; \
@@ -54,7 +55,7 @@
 
 
 struct local {
-	uint32_t str_id;
+	struct str_ref str_ref;
 	int depth;
 	bool is_captured;
 };
@@ -96,11 +97,11 @@ void compiler_destroy(struct compiler *);
 void compiler_emit_variable_inst(struct compiler *,
 				 struct chunk *,
 				 bool is_set,
-				 uint32_t str_id);
+				 struct str_ref str_ref);
 /* Defines a new local variable. */
 void compiler_emit_define_variable_inst(struct compiler *,
 					struct chunk *,
-					uint32_t str_id);
+					struct str_ref str_ref);
 
 /* Emits closure a closure bytecode. */
 void compiler_emit_closure_inst(struct compiler *current,
@@ -109,7 +110,7 @@ void compiler_emit_closure_inst(struct compiler *current,
 				uint32_t constant_id);
 
 /* Defines a new local variable. */
-void compiler_define_local(struct compiler *, uint32_t str_id);
+void compiler_define_local(struct compiler *, struct str_ref str_ref);
 
 /* Creates a new scope. */
 void compiler_begin_scope(struct compiler *);

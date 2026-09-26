@@ -3,6 +3,8 @@
 
 #include "config.h"
 
+#include "string_pool.h"
+
 #include "../vendor/rdesc/include/grammar.h"
 
 
@@ -73,7 +75,7 @@ enum nt_id {
 };
 
 union seminfo_data {
-	uint32_t str_id  /* TK_STR or TK_IDENT */;
+	struct str_ref str_ref  /* TK_STR or TK_IDENT */;
 	Lw_number_t number  /* TK_NUMBER */;
 	Lw_integer_t integer  /* TK_INTEGER */;
 };
@@ -91,6 +93,9 @@ extern const char *const nt_names[NT_COUNT];
 
 extern const struct rdesc_grammar_symbol production_rules
 	[NT_COUNT][NT_MAX_ALTERNATIVE_COUNT + 1][NT_MAX_ALTERNATIVE_SIZE + 1];
+
+
+void token_destroyer(uint16_t id, void *seminfo);
 
 
 #endif

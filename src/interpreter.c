@@ -42,7 +42,7 @@ void interpreter_xinit(struct interpreter *i)
 	Lw_assert(rdesc_init(&i->parser,
 			     &Lw,
 			     sizeof(struct seminfo),
-			     NULL) == 0,
+			     token_destroyer) == 0,
 		   "cannot initialize the parser");
 
 	str_pool_xinit(&i->strings);
@@ -58,10 +58,10 @@ void interpreter_xinit(struct interpreter *i)
 	for (size_t j = 0; j < builtin_functions_len; j++) {
 		struct builtin_function builtin_function = builtin_functions[j];
 
-		uint32_t str_id = str_pool_xget_id(&i->strings,
-						   builtin_function.name,
-						   strlen(builtin_function.name));
-		uint32_t global_id = globals_xget_global_id(&i->globals, str_id);
+		struct str_ref str_ref = str_pool_xget_ref(&i->strings,
+							   builtin_function.name,
+							   strlen(builtin_function.name));
+		uint32_t global_id = globals_xget_global_id(&i->globals, str_ref);
 
 		struct obj_native_function *native_function =
 			obj_native_function_new(&i->vm,

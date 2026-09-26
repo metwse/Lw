@@ -2,6 +2,7 @@
 #define OBJECT_H
 
 #include "chunk.h"
+#include "string_pool.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -69,7 +70,7 @@ struct obj_native_function {
 
 struct obj_str_literal {
 	struct obj obj;
-	uint32_t id;
+	struct str_ref str_ref;
 };
 
 
@@ -96,7 +97,7 @@ struct obj_native_function *obj_native_function_new(struct vm *,
 						    native_function_t *native_function);
 
 struct obj_str_literal *obj_str_literal_new(struct vm *,
-					    uint32_t str_literal_id);
+					    struct str_ref str_ref);
 
 
 #endif

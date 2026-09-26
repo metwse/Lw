@@ -1,4 +1,5 @@
 #include "../include/grammar.h"
+#include "../include/string_pool.h"
 
 #include "../vendor/rdesc/include/rule_macros.h"
 
@@ -200,3 +201,10 @@ alt	TK(IDENT)
 /* <fn-optargs> ::= */
 	ropt(NT(FN_ARGS))
 };
+
+
+void token_destroyer(uint16_t id, void *seminfo)
+{
+	if (id == TK_IDENT || id == TK_STR)
+		str_ref_destroy(((struct seminfo *) seminfo)->seminfo.str_ref);
+}

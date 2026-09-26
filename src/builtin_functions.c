@@ -22,21 +22,46 @@ static struct val hello_world(struct vm *vm _unused,
 }
 
 static struct val gc_run(struct vm *vm,
-			  struct val argv[] _unused,
-			  uint32_t argc _unused)
+			 struct val argv[] _unused,
+			 uint32_t argc _unused)
 {
 	struct gc_result res = vm_gc_mark(vm);
 
 	printf("== GC run ==\n"
-	       "%zu of %zu strings\n"
-	       "%zu of %zu objects\n"
-	       "%zu of %zu global ids\n"
-	       "\t are reachable\n",
-	       (size_t) 0, (size_t) 0,
-	       res.objs, fstack_objects_len(&vm->objects),
-	       (size_t) 0, (size_t) 0);
+	       "%zu of %zu objects\n",
+	       res.objs, fstack_objects_len(&vm->objects));
 
 	vm_gc_sweep(vm);
+	return UNIT_VAL;
+}
+
+static struct val str_pool_info(struct vm *vm,
+				struct val argv[] _unused,
+				uint32_t argc _unused)
+{
+	printf("== Str Pool Sizes ==\n");
+
+#define print_strings(m) do { \
+	struct fhmap_str_pool_strings_entry e; \
+	struct fhmap_str_pool_strings_it it = \
+		fhmap_str_pool_strings_iter(&m); \
+	while (fhmap_str_pool_strings_iter_next(&it, &e)) { \
+		printf("(id %"PRIu32", %zu refs: %.*s) ", \
+			e.value->id, e.value->ref_count, (int) e.key_len, e.key); \
+	} \
+} while (0)
+
+	printf("Short strings: %zu\n",
+	       fhmap_str_pool_strings_used(&vm->strings->maps[0].strings));
+	print_strings(vm->strings->maps[0].strings);
+	printf("\nStrings: %zu\n",
+	       fhmap_str_pool_strings_used(&vm->strings->maps[1].strings));
+	print_strings(vm->strings->maps[1].strings);
+	printf("\nLong strings: %zu\n",
+	       fhmap_str_pool_strings_used(&vm->strings->maps[2].strings));
+	print_strings(vm->strings->maps[2].strings);
+	putc('\n', stdout);
+
 	return UNIT_VAL;
 }
 
@@ -92,19 +117,20 @@ static struct val typeof(struct vm *vm,
 {
 	Lw_assert(argc == 1, "expected one argument");
 
-	uint32_t str_literal_id = str_pool_xget_id(vm->strings,
+	struct str_ref str_ref = str_pool_xget_ref(vm->strings,
 						   val_names[argv[0].type],
 						   strlen(val_names[argv[0].type]));
 
-	return OBJ_VAL((struct obj *) obj_str_literal_new(vm, str_literal_id));
+	return OBJ_VAL((struct obj *) obj_str_literal_new(vm, str_ref));
 }
 
 struct builtin_function builtin_functions[] = {
 	{ "hello_world", hello_world },
 	{ "gc_run", gc_run },
+	{ "str_pool_info", str_pool_info },
 	{ "print", print },
 	{ "println", println },
 	{ "typeof", typeof },
 };
 
-size_t builtin_functions_len = 5;
+size_t builtin_functions_len = 6;

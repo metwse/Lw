@@ -5,6 +5,7 @@
 #include "../include/instructions.h"
 #include "../include/grammar.h"
 #include "../include/object.h"
+#include "../include/string_pool.h"
 #include "../include/value.h"
 
 #include "../vendor/rdesc/include/cst_macros.h"
@@ -21,7 +22,7 @@
 
 #define SEMINFO_NUMBER(n) (SEMINFO(n).number)
 #define SEMINFO_INTEGER(n) (SEMINFO(n).integer)
-#define SEMINFO_STR_ID(n) (SEMINFO(n).str_id)
+#define SEMINFO_STR_REF(n) (SEMINFO(n).str_ref)
 
 
 static void compile_expression(struct chunk *, struct rdesc_node, struct compiler *, bool);
@@ -253,7 +254,7 @@ static void compile_expression(struct chunk *c,
 		case 2: {
 			struct obj_str_literal *obj =
 				obj_str_literal_new(current->vm,
-						    SEMINFO_STR_ID(rchild(n, 0)));
+						    SEMINFO_STR_REF(rchild(n, 0)));
 
 			emit_const(OBJ_VAL((struct obj *) obj));
 			break;
@@ -272,12 +273,12 @@ static void compile_expression(struct chunk *c,
 			break;
 
 		case 6: {
-			uint32_t str_id = SEMINFO_STR_ID(rchild(n, 0));
+			struct str_ref str_ref = SEMINFO_STR_REF(rchild(n, 0));
 
 			if (is_lvalue)
-				emit_inst_set(str_id);
+				emit_inst_set(str_ref);
 			else
-				emit_inst_get(str_id);
+				emit_inst_get(str_ref);
 			break;
 		}
 		}
@@ -314,8 +315,8 @@ static void compile_var_decl(struct chunk *c,
 		emit_inst(OP_UNIT);
 	}
 
-	uint32_t str_id = SEMINFO_STR_ID(rchild(n, 1));
-	compiler_emit_define_variable_inst(current, c, str_id);
+	struct str_ref str_ref = SEMINFO_STR_REF(rchild(n, 1));
+	compiler_emit_define_variable_inst(current, c, str_ref);
 }
 
 static void compile_block(struct chunk *c,
@@ -531,10 +532,10 @@ static void compile_function_decl(struct chunk *c,
 		while (true) {
 			bool last = ralt_idx(params) == 1;
 
-			uint32_t str_id =
-				SEMINFO_STR_ID(rchild(params, last ? 0 : 2));
+			struct str_ref str_ref =
+				SEMINFO_STR_REF(rchild(params, last ? 0 : 2));
+			compiler_define_local(&enclosed, str_ref);
 
-			compiler_define_local(&enclosed, str_id);
 			arity++;
 
 			if (last)
@@ -563,8 +564,8 @@ static void compile_function_decl(struct chunk *c,
 
 	compiler_emit_closure_inst(current, &enclosed, c, constant_id);
 
-	uint32_t str_id = SEMINFO_STR_ID(rchild(n, 1));
-	compiler_emit_define_variable_inst(current, c, str_id);
+	struct str_ref str_ref = SEMINFO_STR_REF(rchild(n, 1));
+	compiler_emit_define_variable_inst(current, c, str_ref);
 
 	compiler_destroy(&enclosed);
 }
