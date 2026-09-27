@@ -26,37 +26,22 @@ void test_input(struct scanner *s,
 		Lw_assert(tk_id == ids[i],
 			  "token type missmatch");
 
-		if (tk_id == TK_IDENT)
-			Lw_assert(seminfo.seminfo.str_id == seminfos[i].str_id,
-				  "str_id missmatch (ident)");
+		if (tk_id == TK_NUMBER)
+			Lw_assert(seminfo.seminfo.number == seminfos[i].number,
+				  "number missmatch");
 
-		if (tk_id == TK_NUM)
-			Lw_assert(seminfo.seminfo.num == seminfos[i].num,
-				  "num missmatch");
+		if (tk_id == TK_NUMBER)
+			Lw_assert(seminfo.seminfo.number == seminfos[i].number,
+				  "number missmatch");
 
-		if (tk_id == TK_STR) {
-			Lw_assert(seminfo.seminfo.str_id == seminfos[i].str_id,
-				  "str_id missmatch (str)");
+		if (tk_id == TK_STR || tk_id == TK_IDENT) {
+			Lw_assert(seminfo.seminfo.str_ref.id == seminfos[i].str_ref.id,
+				  "str_ref.id missmatch (str)");
 		}
 	}
 
 	scanner_xnext(s, &tk_id, &seminfo);
 	Lw_assert(tk_id == TK_EOF || tk_id == TK_INVALID, "still has tokens");
-}
-
-void test_str_pool_id(struct str_pool *p, uint32_t id, const char *str)
-{
-	const char *out_chars;
-	size_t out_len;
-
-	str_pool_get_chars(p, id, &out_chars, &out_len);
-
-	if (id == UINT32_MAX)
-		Lw_assert(out_len == 0,
-			  "zero-length string should have id UINT32_MAX");
-	else
-		Lw_assert(memcmp(str, out_chars, out_len) == 0,
-			  "string pool missmatch");
 }
 
 
@@ -73,20 +58,17 @@ int main(void)
 	test_input(&s,
 		   "    test  123 test2 < =  \n test   ; 321.123 >= >",
 		   (enum tk_id[]) {
-			TK_IDENT, TK_NUM, TK_IDENT, TK_LT, TK_EQ, TK_IDENT,
-			TK_SEMI, TK_NUM, TK_GT_EQ, TK_GT, TK_EOF
+			TK_IDENT, TK_INTEGER, TK_IDENT, TK_LT, TK_EQ, TK_IDENT,
+			TK_SEMI, TK_NUMBER, TK_GT_EQ, TK_GT, TK_EOF
 		   },
 		   (union seminfo_data[]) {
-			[0] = { .str_id = 0 },
-			[1] = { .num = 123 },
-			[2] = { .str_id = 1 },
-			[5] = { .str_id = 0 },
-			[7] = { .num = 321.123 },
+			[0] = { .str_ref.id = 0 },
+			[1] = { .integer = 123 },
+			[2] = { .str_ref.id = 1 },
+			[5] = { .str_ref.id = 0 },
+			[7] = { .number = 321.123 },
 		   },
 		   11);
-
-	test_str_pool_id(&strings, 0, "test");
-	test_str_pool_id(&strings, 1, "test2");
 
 	test_input(&s,
 		   "    valid if ınvalıd ",
@@ -94,7 +76,7 @@ int main(void)
 			TK_IDENT, TK_IF, TK_INVALID
 		   },
 		   (union seminfo_data[]) {
-			[0] = { .str_id = 2 },
+			[0] = { .str_ref.id = 2 },
 		   },
 		   3);
 
@@ -104,20 +86,14 @@ int main(void)
 			TK_STR, TK_STR, TK_STR, TK_STR, TK_STR, TK_STR
 		   },
 		   (union seminfo_data[]) {
-			{ .str_id = 3 },
-			{ .str_id = 4 },
-			{ .str_id = UINT32_MAX },
-			{ .str_id = 5 },
-			{ .str_id = 6 },
-			{ .str_id = 3 },
+			{ .str_ref.id = 3 },
+			{ .str_ref.id = 4 },
+			{ .str_ref.id = UINT32_MAX },
+			{ .str_ref.id = 5 },
+			{ .str_ref.id = 6 },
+			{ .str_ref.id = 3 },
 		   },
 		   6);
-
-	test_str_pool_id(&strings, 3, "string");
-	test_str_pool_id(&strings, 4, "\"");
-	test_str_pool_id(&strings, UINT32_MAX, "");
-	test_str_pool_id(&strings, 5, "\\");
-	test_str_pool_id(&strings, 6, "\\\"");
 
 	test_input(&s,
 		   "\"unterminated string ",

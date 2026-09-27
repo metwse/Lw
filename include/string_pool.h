@@ -7,14 +7,14 @@
 
 /* Underlying string. */
 struct str_pool_string {
-	uint32_t id;
+	size_t id;
 	size_t ref_count;
 };
 
 #define T char, struct str_pool_string, str_pool_strings
 #include "../vendor/libfun/include/hmap.h"
 
-#define T uint32_t, struct fhmap_str_pool_strings_entry_mut, str_pool_rev_map
+#define T size_t, struct fhmap_str_pool_strings_entry_mut, str_pool_rev_map
 #include "../vendor/libfun/include/hmap.h"
 
 
@@ -34,7 +34,7 @@ struct str_pool {
 /* String pool reference. */
 struct str_ref {
 	struct str_pool *p;
-	uint32_t id;
+	size_t id;
 };
 
 

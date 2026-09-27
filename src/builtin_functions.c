@@ -46,7 +46,7 @@ static struct val str_pool_info(struct vm *vm,
 	struct fhmap_str_pool_strings_it it = \
 		fhmap_str_pool_strings_iter(&m); \
 	while (fhmap_str_pool_strings_iter_next(&it, &e)) { \
-		printf("(id %"PRIu32", %zu refs: %.*s) ", \
+		printf("(id %zu, %zu refs: %.*s) ", \
 			e.value->id, e.value->ref_count, (int) e.key_len, e.key); \
 	} \
 } while (0)

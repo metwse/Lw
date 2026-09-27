@@ -11,7 +11,7 @@
 #define T uint32_t, struct val, global_vals
 #include "../vendor/libfun/include/hmap.h"
 
-#define T uint32_t, uint32_t, str_id_to_global_id
+#define T size_t, uint32_t, str_id_to_global_id
 #include "../vendor/libfun/include/hmap.h"
 
 #define T uint32_t, struct str_ref, global_id_to_str_ref

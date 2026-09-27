@@ -42,7 +42,7 @@ struct str_ref str_pool_xget_ref(struct str_pool *p,
 		fhmap_str_pool_strings_get_mut(m_strings, chars, len);
 
 	if (string == NULL) {
-		uint32_t new_id = p->last_id++;
+		size_t new_id = p->last_id++;
 		struct str_pool_string new_string = {
 			.id = new_id,
 			.ref_count = 1,
