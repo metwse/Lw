@@ -25,6 +25,7 @@
 #define SEMINFO_STR_REF(n) (SEMINFO(n).str_ref)
 
 
+#if 0
 static void compile_expression(struct chunk *, struct rdesc_node, struct compiler *, bool);
 static void compile_args(struct chunk *, struct rdesc_node, struct compiler *, uint32_t *);
 static void compile_block(struct chunk *, struct rdesc_node, struct compiler *);
@@ -602,9 +603,10 @@ static void compile_decl(struct chunk *c,
 		break;
 	}
 }
+#endif
 
 /* shall procide NT_DECL */
-struct chunk chunk_xcompile(struct vm *vm, struct rdesc_node n)
+struct chunk chunk_xcompile(struct vm *vm, struct rdesc_node n _unused)
 {
 	struct chunk c;
 	struct compiler current;
@@ -612,7 +614,7 @@ struct chunk chunk_xcompile(struct vm *vm, struct rdesc_node n)
 	chunk_xinit(&c);
 	compiler_xinit(&current, NULL, vm);
 
-	compile_decl(&c, n, &current);
+	/* compile_decl(&c, n, &current); */
 	chunk_xwrite_inst(&c, current.line, (struct inst) { .op = OP_UNIT });
 	chunk_xwrite_inst(&c, current.line, (struct inst) { .op = OP_RETURN });
 

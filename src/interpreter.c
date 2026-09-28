@@ -53,7 +53,7 @@ void interpreter_xinit(struct interpreter *i)
 
 	vm_xinit(&i->vm, &i->strings, &i->globals);
 
-	Lw_assert(rdesc_start(&i->parser, NT_DECL) == 0, "cannot start rdesc");
+	Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0, "cannot start rdesc");
 
 	for (size_t j = 0; j < builtin_functions_len; j++) {
 		struct builtin_function builtin_function = builtin_functions[j];
@@ -119,7 +119,7 @@ int interpreter_run(struct interpreter *i, const char *source)
 
 			chunk_destroy(&chunk);
 
-			Lw_assert(rdesc_start(&i->parser, NT_DECL) == 0,
+			Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0,
 				  "cannot start rdesc");
 			continue;
 		  }
@@ -132,7 +132,7 @@ int interpreter_run(struct interpreter *i, const char *source)
 
 			scanner_new_line(&i->scanner);
 
-			Lw_assert(rdesc_start(&i->parser, NT_DECL) == 0,
+			Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0,
 				  "cannot start rdesc");
 			return 1;
 

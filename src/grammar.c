@@ -6,7 +6,7 @@
 
 const char *const tk_names[TK_COUNT] = {
 	"{", "}", "(", ")", "[", "]",
-	":", ",", ".", "+", ";", "/", "*",
+	":", ",", ".", "%", "+", ";", "/", "*",
 
 	"!", "!=", "=", "==", ">", ">=", "<", "<=", "-", "->", "|", "||",
 
@@ -25,181 +25,258 @@ const char *const tk_names[TK_COUNT] = {
 /* generated using :'<,'>s/NT_\(\w*\)/"\L\1"/g */
 const char *const nt_names[NT_COUNT] = {
 	"decl",
-	"fn_decl", "var_decl",
+	"decl_struct",
+	"decl_enum",
+	"decl_trait",
+	"decl_impl",
+	"decl_fn",
+	"decl_let",
+
+	"type",
+	"generic_params",
+	"optgeneric_params",
+	"bounds",
+	"bounds_rest",
+	"optbounds",
+
+	"associated_items",
+	"associated_item",
+	"optassociated_item_block",
+
 	"stmt",
+	"stmt_expr",
+	"stmt_return",
+	"block",
+	"block_stmts",
+	"block_stmts_expr_optrest",
 
-	"expr_stmt",
-	"for_stmt", "for_stmt_decl",
-	"if_stmt", "if_optelse_stmt",
-	"return_stmt",
-	"while_stmt",
-	"block", "block_decls",
+	"expr",
+	"expr_with_block",
+	"expr_without_block",
+	"optexpr",
+	"expr_if", "expr_if_optelse",
+	"expr_asgn", "expr_asgn_opteq",
+	"expr_logic_or", "expr_logic_or_rest",
+	"expr_logic_and", "expr_logic_and_rest",
+	"expr_equality", "expr_equality_rest", "expr_equality_op",
+	"expr_comparison", "expr_comparison_rest", "expr_comparison_op",
+	"expr_term", "expr_term_rest", "expr_term_op",
+	"expr_factor", "expr_factor_rest", "expr_factor_op",
+	"expr_unary_prefix", "expr_unary_prefix_op",
+	"expr_unary_postfix", "expr_unary_postfix_ops",
+	"expr_primary",
 
-	"expression", "optexpression",  /* expressions */
-	"asgn", "asgn_opteq",  /* = */
-	"logic_or", "logic_or_rest",  /* or */
-	"logic_and", "logic_and_rest",  /* and */
-	"equality", "equality_rest", "equality_op",  /* ==, != */
-	"comparison", "comparison_rest", "comparison_op",  /* >, >=, <, <= */
-	"term", "term_rest", "term_op",  /* +, - */
-	"factor", "factor_rest", "factor_op",  /* *, / */
-	"unary", "unary_op",
-	"call", "call_optargs_or_getattr",
-	"primary",
+	"tuple",
+	"tuple_items",
+	"tuple_items_rest",
+	"tuple_optitems",
 
-	"var_decl_optasgn",
-	"fn",
-	"fn_params", "fn_params_rest", "fn_optparams",
-	"fn_args", "fn_args_rest", "fn_optargs",
+	"decl_fn_def",
+	"decl_fn_params", "decl_fn_params_rest",
+	"decl_fn_optparams",
+
+	"decl_let_def",
 };
 
 const struct rdesc_grammar_symbol production_rules
 	[NT_COUNT][NT_MAX_ALTERNATIVE_COUNT + 1][NT_MAX_ALTERNATIVE_SIZE + 1] = {
 /* <decl> ::= */ r(
-	NT(FN_DECL)
-alt	NT(VAR_DECL)
-alt	NT(STMT)
+	NT(DECL_STRUCT)
+alt	NT(DECL_ENUM)
+alt	NT(DECL_TRAIT)
+alt	NT(DECL_IMPL)
+alt	NT(DECL_FN)
+alt	NT(DECL_LET)
 ),
 
-/* <fn-decl> ::= */ r(
-	TK(FN), NT(FN)
+/* <decl_struct> ::= */ r(
+	TK(STRUCT)
 ),
-/* <var-decl> ::= */ r(
-	TK(LET), TK(IDENT), NT(VAR_DECL_OPTASGN), TK(SEMI)
+/* <decl_enum> ::= */ r(
+	TK(ENUM)
 ),
+/* <decl_trait> ::= */ r(
+	TK(TRAIT)
+),
+/* <decl_impl> ::= */ r(
+	TK(IMPL)
+),
+/* <decl_fn> ::= */ r(
+	TK(FN), TK(IDENT), TK(LPAREN), NT(DECL_FN_OPTPARAMS), TK(RPAREN), NT(DECL_FN_DEF)
+),
+/* <decl_let> ::= */ r(
+	TK(LET), TK(IDENT), NT(DECL_LET_DEF), TK(SEMI)
+),
+
+/* <type> ::= */ r(
+	TK(IDENT), NT(OPTGENERIC_PARAMS)
+alt	TK(IMPL), TK(IDENT), NT(OPTGENERIC_PARAMS)
+),
+/* <generic_params> ::= */ r(
+	TK(LT), TK(GT)
+),
+/* <optgeneric_params> ::= */
+	ropt(NT(GENERIC_PARAMS)),
+/* <bounds> ::= */
+	rrr(BOUNDS, (TK(IDENT)), (TK(PLUS), TK(IDENT))),
+/* <optbounds> ::= */
+	ropt(TK(COLON), NT(BOUNDS)),
+
+/* <associated_items> ::= */
+	ropt(NT(ASSOCIATED_ITEM), NT(ASSOCIATED_ITEMS)),
+/* <associated_item> ::= */ r(
+	NT(DECL_FN)
+),
+/* <optassociated_item_block> ::= */
+	ropt(TK(LBRACE), NT(ASSOCIATED_ITEMS), TK(RBRACE)),
+
 /* <stmt> ::= */ r(
-	NT(EXPR_STMT)
-alt	NT(FOR_STMT)
-alt	NT(IF_STMT)
-alt	NT(RETURN_STMT)
-alt	NT(WHILE_STMT)
+	TK(SEMI)
+alt	NT(DECL)
+alt	NT(STMT_EXPR)
+alt	NT(STMT_RETURN)
 alt	NT(BLOCK)
 ),
-
-/* <expr-stmt> ::= */ r(
-	NT(EXPRESSION), TK(SEMI)
+/* <stmt_expr> ::= */ r(
+	NT(EXPR_WITH_BLOCK)
+alt	NT(EXPR_WITHOUT_BLOCK), TK(SEMI)
 ),
-/* <for-stmt> ::= */ r(
-	TK(FOR), TK(LPAREN), NT(FOR_STMT_DECL),
-		NT(OPTEXPRESSION), TK(SEMI),
-		NT(OPTEXPRESSION), TK(RPAREN), NT(STMT)
-),
-/* <for-stmt-decl> ::= */ r(
-	NT(VAR_DECL)
-alt	NT(EXPR_STMT)
-alt	TK(SEMI)
-),
-/* <if-stmt> ::= */ r(
-	TK(IF), NT(EXPRESSION), NT(BLOCK), NT(IF_OPTELSE_STMT)
-),
-/* <if-optelse-stmt> ::= */ r(
-	TK(ELSE), NT(BLOCK)
-alt	EPSILON
-),
-/* <return-stmt> ::= */ r(
-	TK(RETURN), NT(OPTEXPRESSION), TK(SEMI)
-),
-/* <while-stmt> ::= */ r(
-	TK(WHILE), NT(EXPRESSION), NT(BLOCK)
+/* <stmt_return> ::= */ r(
+	TK(RETURN), NT(OPTEXPR), TK(SEMI)
 ),
 /* <block> ::= */ r(
-	TK(LBRACE), NT(BLOCK_DECLS), TK(RBRACE)
+	TK(LBRACE), NT(BLOCK_STMTS), TK(RBRACE)
 ),
-/* <block-decls> ::= */ r(
-	NT(DECL), NT(BLOCK_DECLS)
+/* <block_stmts> ::= */ r(
+	NT(EXPR), NT(BLOCK_STMTS_EXPR_OPTREST)
+alt	NT(STMT), NT(BLOCK_STMTS)
+alt	EPSILON
+),
+/* <block_stmts_expr_optrest> ::= */
+	ropt(TK(SEMI), NT(BLOCK_STMTS)),
+
+/* <expr> ::= */ r(
+	NT(EXPR_WITH_BLOCK)
+alt	NT(EXPR_WITHOUT_BLOCK)
+),
+/* <expr_with_block> ::= */ r(
+	NT(EXPR_IF)
+),
+/* <expr_without_block> ::= */ r(
+	NT(EXPR_ASGN)
+),
+/* <optexpr> ::= */
+	ropt(NT(EXPR)),
+
+/* <expr_if> ::= */ r(
+	TK(IF), NT(EXPR), NT(BLOCK), NT(EXPR_IF_OPTELSE)
+),
+/* <expr_if_optelse> ::= */ r(
+	TK(ELSE), NT(EXPR_IF)
+alt	TK(ELSE), NT(BLOCK)
 alt	EPSILON
 ),
 
-/* <expression> ::= */ r(
-	NT(ASGN)
+/* <expr_asgn> ::= */ r(
+	NT(EXPR_LOGIC_OR), NT(EXPR_ASGN_OPTEQ)
 ),
-/* <optexpression> ::= */
-	ropt(NT(EXPRESSION)),
+/* <expr_asgn_opteq> ::= */
+	ropt(TK(EQ), NT(EXPR)),
 
-/* <asgn> ::= */ r(
-	NT(LOGIC_OR), NT(ASGN_OPTEQ)
-),
-/* <asgn-opteq> ::= */
-	ropt(TK(EQ), NT(ASGN)),
+/* <expr_logic_or> ::= */
+	rrr(EXPR_LOGIC_OR,
+		(NT(EXPR_LOGIC_AND)),
+		(TK(PIPE_PIPE), NT(EXPR_LOGIC_AND))),
+/* <expr_logic_and> ::= */
+	rrr(EXPR_LOGIC_AND,
+		(NT(EXPR_EQUALITY)),
+		(TK(AND_AND), NT(EXPR_EQUALITY))),
 
-/* <logic-or> ::= */
-	rrr(LOGIC_OR, (NT(LOGIC_AND)), (TK(PIPE_PIPE), NT(LOGIC_AND))),
-/* <logic-and> ::= */
-	rrr(LOGIC_AND, (NT(EQUALITY)), (TK(AND_AND), NT(EQUALITY))),
-
-/* <equality> ::= */
-	rrr(EQUALITY, (NT(COMPARISON)), (NT(EQUALITY_OP), NT(COMPARISON))),
-/* <equality-op> ::= */ r(
+/* <expr_equality> ::= */
+	rrr(EXPR_EQUALITY,
+		(NT(EXPR_COMPARISON)),
+		(NT(EXPR_EQUALITY_OP), NT(EXPR_COMPARISON))),
+/* <expr_equality_op> ::= */ r(
 	TK(EXCL_EQ)
 alt	TK(EQ_EQ)
 ),
-
-/* <comparison> ::= */
-	rrr(COMPARISON, (NT(TERM)), (NT(COMPARISON_OP), NT(TERM))),
-/* <comparison-op> ::= */ r(
+/* <expr_comparison> ::= */
+	rrr(EXPR_COMPARISON,
+		(NT(EXPR_TERM)),
+		(NT(EXPR_COMPARISON_OP), NT(EXPR_TERM))),
+/* <expr_comparison_op> ::= */ r(
 	TK(GT)
 alt	TK(GT_EQ)
 alt	TK(LT)
 alt	TK(LT_EQ)
 ),
 
-/* <term> ::= */
-	rrr(TERM, (NT(FACTOR)), (NT(TERM_OP), NT(FACTOR))),
-/* <term-op> ::= */ r(
+/* <expr_term> ::= */
+	rrr(EXPR_TERM,
+		(NT(EXPR_FACTOR)),
+		(NT(EXPR_TERM_OP), NT(EXPR_FACTOR))),
+/* <expr_term_op> ::= */ r(
 	TK(MINUS)
 alt	TK(PLUS)
 ),
-
-/* <factor> ::= */
-	rrr(FACTOR, (NT(UNARY)), (NT(FACTOR_OP), NT(UNARY))),
-/* <factor-op> ::= */ r(
+/* <expr_factor> ::= */
+	rrr(EXPR_FACTOR,
+		(NT(EXPR_UNARY_PREFIX)),
+		(NT(EXPR_FACTOR_OP), NT(EXPR_UNARY_PREFIX))),
+/* <expr_factor_op> ::= */ r(
 	TK(SLASH)
 alt	TK(STAR)
+alt	TK(PERCENT)
 ),
 
-/* <unary> ::= */ r(
-	NT(UNARY_OP), NT(UNARY)
-alt	NT(CALL)
+/* <expr_unary_prefix> ::= */ r(
+	NT(EXPR_UNARY_PREFIX_OP), NT(EXPR_UNARY_PREFIX)
+alt	NT(EXPR_UNARY_POSTFIX)
 ),
-/* <unary-op> ::= */ r(
+/* <expr_unary_prefix_op> ::= */ r(
 	TK(PLUS)
 alt	TK(MINUS)
 alt	TK(EXCL)
 ),
-
-/* <call> ::= */ r(
-	NT(PRIMARY), NT(CALL_OPTARGS_OR_GETATTR)
+/* <expr_unary_postfix> ::= */ r(
+	NT(EXPR_PRIMARY), NT(EXPR_UNARY_POSTFIX_OPS)
 ),
-/* <call-optargs-or-get> ::= */ r(
-	TK(LPAREN), NT(FN_OPTARGS), TK(RPAREN), NT(CALL_OPTARGS_OR_GETATTR)
-alt	TK(DOT), TK(IDENT), NT(CALL_OPTARGS_OR_GETATTR)
+/* <expr_unary_postfix_ops> ::= */ r(
+	NT(TUPLE), NT(EXPR_UNARY_POSTFIX_OPS)
+alt	TK(LSQ_BRACKET), TK(RSQ_BRACKET), NT(EXPR_UNARY_POSTFIX_OPS)
+alt	TK(DOT), TK(IDENT), NT(EXPR_UNARY_POSTFIX_OPS)
 alt	EPSILON
 ),
 
-/* <primary> ::= */ r(
+/* <expr_primary> ::= */ r(
 	TK(NUMBER)
 alt	TK(INTEGER)
 alt	TK(STR)
 alt	TK(TRUE)
 alt	TK(FALSE)
-alt	TK(LPAREN), NT(EXPRESSION), TK(RPAREN)
+alt	TK(LPAREN), NT(EXPR), TK(RPAREN)
 alt	TK(IDENT)
 ),
 
-/* <var-decl-optasgn> ::= */
-	ropt(TK(EQ), NT(EXPRESSION)),
-
-/* <fn> ::= */ r(
-	TK(IDENT), TK(LPAREN), NT(FN_OPTPARAMS), TK(RPAREN), NT(BLOCK)
+/* <tuple> ::= */ r(
+	TK(LPAREN), NT(TUPLE_OPTITEMS), TK(RPAREN)
 ),
-/* <fn-params> ::= */
-	rrr(FN_PARAMS, (TK(IDENT)), (TK(COMMA), TK(IDENT))),
-/* <fn-optparams> ::= */
-	ropt(NT(FN_PARAMS)),
-/* <fn-args> ::= */
-	rrr(FN_ARGS, (NT(EXPRESSION)), (TK(COMMA), NT(EXPRESSION))),
-/* <fn-optargs> ::= */
-	ropt(NT(FN_ARGS))
+/* <tuple_items> ::= */
+	rrr(TUPLE_ITEMS, (NT(EXPR)), (TK(COMMA), NT(EXPR))),
+/* <tuple_optitems> ::= */
+	ropt(NT(TUPLE_ITEMS)),
+
+/* <decl_fn_def> ::= */ r(
+	NT(BLOCK)
+alt	TK(SEMI)
+),
+/* <decl_fn_params> ::= */
+	rrr(DECL_FN_PARAMS, (TK(IDENT)), (TK(COMMA), TK(IDENT))),
+/* <decl_fn_optparams> ::= */
+	ropt(NT(DECL_FN_PARAMS)),
+
+/* <decl_let_def> ::= */
+	ropt(TK(EQ), NT(EXPR))
 };
 
 
