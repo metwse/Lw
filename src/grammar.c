@@ -54,7 +54,10 @@ const char *const nt_names[NT_COUNT] = {
 	"expr_with_block",
 	"expr_without_block",
 	"optexpr",
+
 	"expr_if", "expr_if_optelse",
+	"expr_while",
+
 	"expr_asgn", "expr_asgn_opteq",
 	"expr_logic_or", "expr_logic_or_rest",
 	"expr_logic_and", "expr_logic_and_rest",
@@ -216,17 +219,17 @@ alt	TK(LT_EQ)
 		(NT(EXPR_FACTOR)),
 		(NT(EXPR_TERM_OP), NT(EXPR_FACTOR))),
 /* <expr_term_op> ::= */ r(
-	TK(MINUS)
-alt	TK(PLUS)
+	TK(MINUS)								/* mult */
+alt	TK(PLUS)								/* add */
 ),
 /* <expr_factor> ::= */
 	rrr(EXPR_FACTOR,
 		(NT(EXPR_UNARY_PREFIX)),
 		(NT(EXPR_FACTOR_OP), NT(EXPR_UNARY_PREFIX))),
 /* <expr_factor_op> ::= */ r(
-	TK(SLASH)
-alt	TK(STAR)
-alt	TK(PERCENT)
+	TK(SLASH)								/* div */
+alt	TK(STAR)								/* mult */
+alt	TK(PERCENT)								/* mod */
 ),
 
 /* <expr_unary_prefix> ::= */ r(
@@ -235,16 +238,16 @@ alt	NT(EXPR_UNARY_POSTFIX)
 ),
 /* <expr_unary_prefix_op> ::= */ r(
 	TK(PLUS)
-alt	TK(MINUS)
-alt	TK(EXCL)
+alt	TK(MINUS)								/* neg op */
+alt	TK(EXCL)								/* not op */
 ),
 /* <expr_unary_postfix> ::= */ r(
 	NT(EXPR_PRIMARY), NT(EXPR_UNARY_POSTFIX_OPS)
 ),
 /* <expr_unary_postfix_ops> ::= */ r(
-	NT(TUPLE), NT(EXPR_UNARY_POSTFIX_OPS)
-alt	TK(LSQ_BRACKET), TK(RSQ_BRACKET), NT(EXPR_UNARY_POSTFIX_OPS)
-alt	TK(DOT), TK(IDENT), NT(EXPR_UNARY_POSTFIX_OPS)
+	NT(TUPLE), NT(EXPR_UNARY_POSTFIX_OPS)					/* call op */
+alt	TK(LSQ_BRACKET), TK(RSQ_BRACKET), NT(EXPR_UNARY_POSTFIX_OPS)		/* index op*/
+alt	TK(DOT), TK(IDENT), NT(EXPR_UNARY_POSTFIX_OPS)				/* item op */
 alt	EPSILON
 ),
 
