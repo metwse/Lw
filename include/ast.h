@@ -8,6 +8,8 @@
 
 #include "../vendor/rdesc/include/rdesc.h"
 
+#include <stdio.h>
+
 
 /* Top-level item (itemaration or stmt) */
 struct ast_item {
@@ -194,6 +196,9 @@ struct ast_expr {
 
 /* Convert a rdesc parse tree to Lw AST. */
 struct ast_item *ast_new(struct rdesc_node);
+
+/* Format and print the AST root. */
+void ast_pretty_print(FILE *, const struct ast_item *);
 
 /* Free resources allocated by the AST. */
 void ast_destroy(struct ast_item *);

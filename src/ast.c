@@ -72,7 +72,7 @@ static struct ast_block_expr *parse_expr_block(struct rdesc_node n _unused)
 	traverse_block_expr(block_expr->items[i++] = parse_item(item_node),
 			    block_expr->opt_return_value = parse_expr(expr_node));
 
-	return NULL;
+	return block_expr;
 }
 
 /* Parse NT_EXPR, NT_EXPR_WITHOUT_BLOCK, or NT_EXPR_WITH_BLOCK as ast_exr. */
@@ -89,7 +89,7 @@ static struct ast_expr *parse_expr(struct rdesc_node n)
 		break;
 
 	case NT_EXPR_WITH_BLOCK:
-		switch (rid(n)) {
+		switch (rid(rchild(n, 0))) {
 		case NT_EXPR_IF: {
 			expr->kind = AST_EXPR_IF;
 			expr->data.if_expr = parse_expr_if(rchild(n, 0));
@@ -100,18 +100,13 @@ static struct ast_expr *parse_expr(struct rdesc_node n)
 			expr->kind = AST_EXPR_WHILE;
 			expr->data.while_expr = parse_expr_while(rchild(n, 0));
 			break;
-
-		_unreachable_default;  // GCOVR_EXCL_LINE
 		}
 
 		break;
-
-	_unreachable_default;  // GCOVR_EXCL_LINE
 	}
 
 	return expr;
 }
-
 
 static enum ast_expr_binary_op_kind binary_op_map[][4] = {
 	[NT_EXPR_LOGIC_OR] = { AST_EXPR_BINARY_OP_OR, },
@@ -152,7 +147,10 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 				xmalloc(sizeof(struct ast_expr_binary_op));
 
 			expr->data.binary_op->kind = AST_EXPR_BINARY_OP_ASGN;
-			expr->data.binary_op->lhs = parse_expr(rchild(n, 0));
+			expr->data.binary_op->lhs =
+				xmalloc(sizeof(struct ast_expr));
+			parse_expr_recursive(rchild(n, 0),
+					     expr->data.binary_op->lhs);
 			expr->data.binary_op->rhs = parse_expr(rchild(rhs, 1));
 		} else {
 			rdesc_flip_left(n, 0);  /* flip <expr_logic_or> */
@@ -170,8 +168,10 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 	case NT_EXPR_FACTOR:
 		if (ralt_idx(n) == 0) {
 			expr->kind = AST_EXPR_BINARY_OP;
-			if (rid(n) != NT_EXPR_FACTOR)  /* factor has unary op children */
-				rdesc_flip_left(n, 0);
+			/* factor has unary op children */
+			if (rid(n) != NT_EXPR_FACTOR) {
+				rdesc_flip_left(n, 2);
+			}
 
 			expr->data.binary_op =
 				xmalloc(sizeof(struct ast_expr_binary_op));
@@ -179,9 +179,18 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 			expr->data.binary_op->kind =
 				binary_op_map[rid(n)][ralt_idx(rchild(n, 1))];
 						       /* ^ the operator */
-			expr->data.binary_op->lhs = parse_expr(rchild(n, 0));
-			expr->data.binary_op->rhs = parse_expr(rchild(n, 2));
+			expr->data.binary_op->lhs =
+				xmalloc(sizeof(struct ast_expr));
+			parse_expr_recursive(rchild(n, 0),
+					     expr->data.binary_op->lhs);
+			expr->data.binary_op->rhs =
+				xmalloc(sizeof(struct ast_expr));
+			parse_expr_recursive(rchild(n, 2),
+					     expr->data.binary_op->rhs);
 		} else {
+			/* factor has unary op children */
+			if (rid(n) != NT_EXPR_FACTOR)
+				rdesc_flip_left(n, 0);
 			parse_expr_recursive(rchild(n, 0), expr);
 		}
 		break;
@@ -195,7 +204,10 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 
 			expr->data.unary_op->kind =
 				unary_op_map[rid(n)][ralt_idx(rchild(n, 0))];
-			expr->data.unary_op->expr = parse_expr(rchild(n, 1));
+			expr->data.unary_op->expr =
+				xmalloc(sizeof(struct ast_expr));
+			parse_expr_recursive(rchild(n, 1),
+					     expr->data.unary_op->expr);
 		} else {
 			parse_expr_recursive(rchild(n, 0), expr);
 		}
@@ -203,7 +215,7 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 
 	case NT_EXPR_UNARY_POSTFIX: {
 		int op = ralt_idx(rchild(n, 1));
-		if (op != 4) {
+		if (op != 3) {
 			expr->kind = AST_EXPR_UNARY_OP;
 
 			expr->data.unary_op =
@@ -231,18 +243,19 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 	}
 
 	case NT_EXPR_PRIMARY: {
+		struct rdesc_node c = rchild(n, 0);
 		switch (ralt_idx(n)) {
 		case 0:
 			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = NUMBER_VAL(SEMINFO_NUMBER(n));
+			expr->data.constant = NUMBER_VAL(SEMINFO_NUMBER(c));
 			break;
 		case 1:
 			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = INTEGER_VAL(SEMINFO_INTEGER(n));
+			expr->data.constant = INTEGER_VAL(SEMINFO_INTEGER(c));
 			break;
 		case 2:
 			expr->kind = AST_EXPR_STR_LITERAL;
-			expr->data.str_literal = SEMINFO_STR_REF(n);
+			expr->data.str_literal = SEMINFO_STR_REF(c);
 			break;
 		case 3:
 			expr->kind = AST_EXPR_CONSTANT;
@@ -257,7 +270,7 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 			break;
 		case 6:
 			expr->kind = AST_EXPR_VARIABLE;
-			expr->data.variable = SEMINFO_STR_REF(n);
+			expr->data.variable = SEMINFO_STR_REF(c);
 			break;
 		}
 		break;

@@ -113,6 +113,7 @@ int interpreter_run(struct interpreter *i, const char *source)
 					       rdesc_get_root(&i->parser));
 
 			struct ast_item *ast = ast_new(rdesc_get_root(&i->parser));
+			ast_pretty_print(stdout, ast);
 
 			/* chunk_disassemble(&chunk, stderr, 0, 0); */
 
