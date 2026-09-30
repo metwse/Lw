@@ -24,13 +24,13 @@ const char *const tk_names[TK_COUNT] = {
 
 /* generated using :'<,'>s/NT_\(\w*\)/"\L\1"/g */
 const char *const nt_names[NT_COUNT] = {
-	"decl",
-	"decl_struct",
-	"decl_enum",
-	"decl_trait",
-	"decl_impl",
-	"decl_fn",
-	"decl_let",
+	"item",
+	"item_struct",
+	"item_enum",
+	"item_trait",
+	"item_impl",
+	"item_fn",
+	"item_let",
 
 	"type",
 	"generic_params",
@@ -74,41 +74,42 @@ const char *const nt_names[NT_COUNT] = {
 	"tuple_items_rest",
 	"tuple_optitems",
 
-	"decl_fn_def",
-	"decl_fn_params", "decl_fn_params_rest",
-	"decl_fn_optparams",
+	"item_fn_def",
+	"item_fn_params", "item_fn_params_rest",
+	"item_fn_optparams",
 
-	"decl_let_def",
+	"item_let_def",
 };
 
 const struct rdesc_grammar_symbol production_rules
 	[NT_COUNT][NT_MAX_ALTERNATIVE_COUNT + 1][NT_MAX_ALTERNATIVE_SIZE + 1] = {
-/* <decl> ::= */ r(
-	NT(DECL_STRUCT)
-alt	NT(DECL_ENUM)
-alt	NT(DECL_TRAIT)
-alt	NT(DECL_IMPL)
-alt	NT(DECL_FN)
-alt	NT(DECL_LET)
+/* <item> ::= */ r(
+	NT(ITEM_STRUCT)
+alt	NT(ITEM_ENUM)
+alt	NT(ITEM_TRAIT)
+alt	NT(ITEM_IMPL)
+alt	NT(ITEM_FN)
+alt	NT(ITEM_LET)
+alt	NT(STMT)
 ),
 
-/* <decl_struct> ::= */ r(
+/* <item_struct> ::= */ r(
 	TK(STRUCT)
 ),
-/* <decl_enum> ::= */ r(
+/* <item_enum> ::= */ r(
 	TK(ENUM)
 ),
-/* <decl_trait> ::= */ r(
+/* <item_trait> ::= */ r(
 	TK(TRAIT)
 ),
-/* <decl_impl> ::= */ r(
+/* <item_impl> ::= */ r(
 	TK(IMPL)
 ),
-/* <decl_fn> ::= */ r(
-	TK(FN), TK(IDENT), TK(LPAREN), NT(DECL_FN_OPTPARAMS), TK(RPAREN), NT(DECL_FN_DEF)
+/* <item_fn> ::= */ r(
+	TK(FN), TK(IDENT), TK(LPAREN), NT(ITEM_FN_OPTPARAMS), TK(RPAREN), NT(ITEM_FN_DEF)
 ),
-/* <decl_let> ::= */ r(
-	TK(LET), TK(IDENT), NT(DECL_LET_DEF), TK(SEMI)
+/* <item_let> ::= */ r(
+	TK(LET), TK(IDENT), NT(ITEM_LET_DEF), TK(SEMI)
 ),
 
 /* <type> ::= */ r(
@@ -128,14 +129,13 @@ alt	TK(IMPL), TK(IDENT), NT(OPTGENERIC_PARAMS)
 /* <associated_items> ::= */
 	ropt(NT(ASSOCIATED_ITEM), NT(ASSOCIATED_ITEMS)),
 /* <associated_item> ::= */ r(
-	NT(DECL_FN)
+	NT(ITEM_FN)
 ),
 /* <optassociated_item_block> ::= */
 	ropt(TK(LBRACE), NT(ASSOCIATED_ITEMS), TK(RBRACE)),
 
 /* <stmt> ::= */ r(
 	TK(SEMI)
-alt	NT(DECL)
 alt	NT(STMT_EXPR)
 alt	NT(STMT_RETURN)
 alt	NT(BLOCK)
@@ -152,7 +152,7 @@ alt	NT(EXPR_WITHOUT_BLOCK), TK(SEMI)
 ),
 /* <block_stmts> ::= */ r(
 	NT(EXPR), NT(BLOCK_STMTS_EXPR_OPTREST)
-alt	NT(STMT), NT(BLOCK_STMTS)
+alt	NT(ITEM), NT(BLOCK_STMTS)
 alt	EPSILON
 ),
 /* <block_stmts_expr_optrest> ::= */
@@ -164,6 +164,7 @@ alt	NT(EXPR_WITHOUT_BLOCK)
 ),
 /* <expr_with_block> ::= */ r(
 	NT(EXPR_IF)
+alt	NT(EXPR_WHILE)
 ),
 /* <expr_without_block> ::= */ r(
 	NT(EXPR_ASGN)
@@ -178,6 +179,9 @@ alt	NT(EXPR_WITHOUT_BLOCK)
 	TK(ELSE), NT(EXPR_IF)
 alt	TK(ELSE), NT(BLOCK)
 alt	EPSILON
+),
+/* <expr_while> ::= */ r(
+	TK(WHILE), NT(EXPR), NT(BLOCK)
 ),
 
 /* <expr_asgn> ::= */ r(
@@ -269,16 +273,16 @@ alt	TK(IDENT)
 /* <tuple_optitems> ::= */
 	ropt(NT(TUPLE_ITEMS)),
 
-/* <decl_fn_def> ::= */ r(
+/* <item_fn_def> ::= */ r(
 	NT(BLOCK)
 alt	TK(SEMI)
 ),
-/* <decl_fn_params> ::= */
-	rrr(DECL_FN_PARAMS, (TK(IDENT)), (TK(COMMA), TK(IDENT))),
-/* <decl_fn_optparams> ::= */
-	ropt(NT(DECL_FN_PARAMS)),
+/* <item_fn_params> ::= */
+	rrr(ITEM_FN_PARAMS, (TK(IDENT)), (TK(COMMA), TK(IDENT))),
+/* <item_fn_optparams> ::= */
+	ropt(NT(ITEM_FN_PARAMS)),
 
-/* <decl_let_def> ::= */
+/* <item_let_def> ::= */
 	ropt(TK(EQ), NT(EXPR))
 };
 

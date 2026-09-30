@@ -146,12 +146,10 @@ struct obj_closure *obj_closure_new(struct vm *vm,
 
 	struct obj_upvalue **upvalues;
 	if (function->upvalue_count)
-		upvalues = malloc(sizeof(struct obj_upvalue *) *
+		upvalues = xmalloc(sizeof(struct obj_upvalue *) *
 					function->upvalue_count);
 	else
 		upvalues = NULL;
-
-	Lw_assert(obj, "cannot malloc");
 
 	*obj = (struct obj_closure) {
 		.obj = { .type = OBJ_CLOSURE },

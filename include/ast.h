@@ -30,6 +30,8 @@ struct ast_item {
 		struct ast_let *let;
 		struct ast_stmt *stmt;
 	} data;
+
+	int line;
 };
 
 struct ast_struct {
@@ -82,16 +84,15 @@ struct ast_let {
 
 struct ast_stmt {
 	enum ast_stmt_kind {
-		AST_STMT_DECL,
+		AST_STMT_NONE,
 		AST_STMT_RETURN,
 		AST_STMT_EXPR,
 		AST_STMT_BLOCK,
 	} kind;
 
 	union ast_stmt_data {
-		struct ast_item *item;
 		struct ast_expr *opt_return_value;
-		struct ast_expr *expr;
+		struct ast_expr *expr_discard_result;
 		struct ast_block_expr *block;
 	} data;
 };
@@ -99,17 +100,19 @@ struct ast_stmt {
 struct ast_block_expr {
 	/* items excluding the return expression */
 	size_t item_count;
-	struct ast_item *items;
+	struct ast_item **items;
 
 	struct ast_expr *opt_return_value;
 };
 
 struct ast_expr {
 	enum ast_expr_kind {
-		AST_EPXR_BINARY_OP,
+		AST_EXPR_BINARY_OP,
 		AST_EXPR_UNARY_OP,
 		AST_EXPR_IF,
+		AST_EXPR_WHILE,
 		AST_EXPR_CONSTANT,
+		AST_EXPR_STR_LITERAL,
 		AST_EXPR_VARIABLE,
 	} kind;
 
@@ -132,11 +135,13 @@ struct ast_expr {
 				AST_EXPR_BINARY_OP_NOT_EQ,
 
 				/* cannot overload */
-				AST_EXOR_BINARY_OP_ASGN,
+				AST_EXPR_BINARY_OP_ASGN,
+				AST_EXPR_BINARY_OP_OR,
+				AST_EXPR_BINARY_OP_AND,
 			} kind;
 			struct ast_expr *lhs;
 			struct ast_expr *rhs;
-		} binary_op;
+		} *binary_op;
 
 		struct ast_expr_unary_op {
 			enum ast_expr_unary_op_kind {
@@ -156,7 +161,7 @@ struct ast_expr {
 				struct str_ref item;
 			} data;
 			struct ast_expr *expr;
-		} unary_op;
+		} *unary_op;
 
 		struct ast_expr_if {
 			enum ast_expr_if_rest_kind {
@@ -170,9 +175,17 @@ struct ast_expr {
 			} rest_data;
 			struct ast_expr *cond;
 			struct ast_block_expr *then;
-		} if_expr;
+		} *if_expr;
+
+		struct ast_expr_while {
+			struct ast_expr *cond;
+			struct ast_block_expr *block;
+		} *while_expr;
+
 
 		struct val constant;
+
+		struct str_ref str_literal;
 
 		struct str_ref variable;
 	} data;

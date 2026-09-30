@@ -43,7 +43,7 @@ void vm_destroy(struct vm *vm)
 
 struct obj *vm_obj_alloc(struct vm *vm, size_t size)
 {
-	struct obj *o = malloc(size);
+	struct obj *o = xmalloc(size);
 	Lw_assert(o != NULL, "memory allocation error");
 
 	fstack_objects_xpush(&vm->objects, &o);

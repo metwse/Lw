@@ -1,5 +1,6 @@
 #include "globals_internal.h"
 
+#include "../include/ast.h"
 #include "../include/builtin_functions.h"
 #include "../include/common.h"
 #include "../include/globals.h"
@@ -53,7 +54,7 @@ void interpreter_xinit(struct interpreter *i)
 
 	vm_xinit(&i->vm, &i->strings, &i->globals);
 
-	Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0, "cannot start rdesc");
+	Lw_assert(rdesc_start(&i->parser, NT_ITEM) == 0, "cannot start rdesc");
 
 	for (size_t j = 0; j < builtin_functions_len; j++) {
 		struct builtin_function builtin_function = builtin_functions[j];
@@ -111,6 +112,8 @@ int interpreter_run(struct interpreter *i, const char *source)
 				chunk_xcompile(&i->vm,
 					       rdesc_get_root(&i->parser));
 
+			struct ast_item *ast = ast_new(rdesc_get_root(&i->parser));
+
 			/* chunk_disassemble(&chunk, stderr, 0, 0); */
 
 			if (vm_execute(&i->vm, &chunk))
@@ -119,7 +122,7 @@ int interpreter_run(struct interpreter *i, const char *source)
 
 			chunk_destroy(&chunk);
 
-			Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0,
+			Lw_assert(rdesc_start(&i->parser, NT_ITEM) == 0,
 				  "cannot start rdesc");
 			continue;
 		  }
@@ -132,7 +135,7 @@ int interpreter_run(struct interpreter *i, const char *source)
 
 			scanner_new_line(&i->scanner);
 
-			Lw_assert(rdesc_start(&i->parser, NT_STMT) == 0,
+			Lw_assert(rdesc_start(&i->parser, NT_ITEM) == 0,
 				  "cannot start rdesc");
 			return 1;
 
