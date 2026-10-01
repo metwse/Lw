@@ -1,7 +1,6 @@
 #include "../include/ast.h"
 #include "../include/common.h"
 #include "../include/grammar.h"
-#include "../include/value.h"
 
 #include "../vendor/rdesc/include/cst_macros.h"
 #include "../vendor/rdesc/include/rdesc.h"
@@ -27,7 +26,6 @@ static struct ast_stmt *parse_stmt(struct rdesc_node);
 
 static struct ast_expr_block *parse_expr_block(struct rdesc_node n _unused)
 {
-	struct ast_expr_block *expr_block = xmalloc(sizeof(struct ast_expr_block));
 	size_t item_count = 0;
 
 #define traverse_expr_block(item, expr) do { \
@@ -64,6 +62,8 @@ static struct ast_expr_block *parse_expr_block(struct rdesc_node n _unused)
 
 	traverse_expr_block(item_count++, ((void) 0));
 
+	struct ast_expr_block *expr_block = xmalloc(sizeof(struct ast_expr_block));
+
 	expr_block->items = xmalloc(sizeof(struct ast_item *) * item_count);
 	expr_block->item_count = item_count;
 	expr_block->opt_return_value = NULL;
@@ -75,9 +75,17 @@ static struct ast_expr_block *parse_expr_block(struct rdesc_node n _unused)
 	return expr_block;
 }
 
-/* Parse NT_EXPR, NT_EXPR_WITHOUT_BLOCK, or NT_EXPR_WITH_BLOCK as ast_exr. */
+/* Parse NT_(OPT)EXPR, NT_EXPR_WITHOUT_BLOCK, or NT_EXPR_WITH_BLOCK as ast_exr.
+ * Returns NULL if NT_OPTEXPR is E. */
 static struct ast_expr *parse_expr(struct rdesc_node n)
 {
+	if (rid(n) == NT_OPTEXPR) {
+		if (ralt_idx(n) == 0)
+			return parse_expr(rchild(n, 0));
+		else
+			return NULL;
+	}
+
 	struct ast_expr *expr = xmalloc(sizeof(struct ast_expr));
 
 	if (rid(n) == NT_EXPR)
@@ -251,24 +259,24 @@ void parse_expr_recursive(struct rdesc_node n, struct ast_expr *expr)
 		struct rdesc_node c = rchild(n, 0);
 		switch (ralt_idx(n)) {
 		case 0:
-			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = NUMBER_VAL(SEMINFO_NUMBER(c));
+			expr->kind = AST_EXPR_NUMBER;
+			expr->data.number = SEMINFO_NUMBER(c);
 			break;
 		case 1:
-			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = INTEGER_VAL(SEMINFO_INTEGER(c));
+			expr->kind = AST_EXPR_INTEGER;
+			expr->data.integer = SEMINFO_INTEGER(c);
 			break;
 		case 2:
 			expr->kind = AST_EXPR_STR_LITERAL;
 			expr->data.str_literal = SEMINFO_STR_REF(c);
 			break;
 		case 3:
-			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = BOOL_VAL(true);
+			expr->kind = AST_EXPR_BOOLEAN;
+			expr->data.boolean = true;
 			break;
 		case 4:
-			expr->kind = AST_EXPR_CONSTANT;
-			expr->data.constant = BOOL_VAL(false);
+			expr->kind = AST_EXPR_BOOLEAN;
+			expr->data.boolean = false;
 			break;
 		case 5:
 			parse_expr_recursive(rchild(n, 1), expr);
@@ -331,7 +339,7 @@ static struct ast_let *parse_let(struct rdesc_node n)
 	struct rdesc_node let_def = rchild(n, 2);
 
 	if (ralt_idx(let_def) == 0)
-		let->opt_value = parse_expr(rchild(n, 1));
+		let->opt_value = parse_expr(rchild(let_def, 1));
 	else
 		let->opt_value = NULL;
 
@@ -363,12 +371,7 @@ static struct ast_stmt *parse_stmt(struct rdesc_node n)
 	case 2: {
 		n = rchild(n, 0);  /* "return" <optexpr> ";" */
 		stmt->kind = AST_STMT_RETURN;
-		if (ralt_idx(rchild(n, 1)) == 0) {
-			stmt->data.return_opt_value =
-				parse_expr(rchild(rchild(n, 1), 0));
-		} else {
-			stmt->data.return_opt_value = NULL;
-		}
+		stmt->data.return_opt_value = parse_expr(rchild(n, 1));
 		break;
 	}
 	}

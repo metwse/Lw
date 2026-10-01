@@ -3,7 +3,6 @@
 #include "../include/ast.h"
 #include "../include/common.h"
 #include "../include/string_pool.h"
-#include "../include/value.h"
 
 #include <stdio.h>
 
@@ -68,6 +67,23 @@ define_printer(fn)
 
 define_printer(let)
 {
+	print("let: {\n");
+	indent++;
+
+	/* TODO: deduplicate chars */
+	const char *chars;
+	size_t len;
+
+	str_ref_get_chars(let->name, &chars, &len);
+	print_indented("(name) %.*s\n", (int) len, chars);
+
+	if (let->opt_value != NULL) {
+		print_indented("(value) ");
+		call_printer(expr, let->opt_value);;
+	}
+
+	indent--;
+	print_indented("}\n");
 }
 
 define_printer2(expr_block, block)
@@ -196,29 +212,24 @@ define_printer(expr)
 		call_printer(expr_while, expr->data.while_expr);
 		break;
 
-	case AST_EXPR_CONSTANT:
-		switch (expr->data.constant.type) {
-		case VAL_NUMBER:
-			print_indented("(number) %"Lw_number_fmt"\n",
-				       expr->data.constant.val.number);
-			break;
+	case AST_EXPR_NUMBER:
+		print_indented("(number) %"Lw_number_fmt"\n",
+			       expr->data.number);
+		break;
 
-		case VAL_INTEGER:
-			print_indented("(integer) %"Lw_integer_fmt"\n",
-				       expr->data.constant.val.integer);
-			break;
+	case AST_EXPR_INTEGER:
+		print_indented("(integer) %"Lw_integer_fmt"\n",
+			       expr->data.integer);
+		break;
 
-		case VAL_BOOL:
-			print_indented("(boolean) %s\n",
-				       expr->data.constant.val.boolean ?
-						"true" : "false");
-			break;
-
-		_unreachable_default;
-		}
+	case AST_EXPR_BOOLEAN:
+		print_indented("(boolean) %s\n",
+			       expr->data.boolean ?
+					"true" : "false");
 		break;
 
 	case AST_EXPR_STR_LITERAL: {
+		/* TODO: deduplicate chars */
 		const char *chars;
 		size_t len;
 
@@ -228,6 +239,7 @@ define_printer(expr)
 	}
 
 	case AST_EXPR_VARIABLE: {
+		/* TODO: deduplicate chars */
 		const char *chars;
 		size_t len;
 

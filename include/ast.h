@@ -3,6 +3,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include "config.h"
 #include "string_pool.h"
 #include "value.h"
 
@@ -36,6 +37,10 @@ struct ast_item {
 	int line;
 };
 
+/* Struct (product) type definition.
+ *
+ * struct_field_names array countains names for the fields for struct structs,
+ * and is NULL for tuple or unit structs. */
 struct ast_struct {
 	struct str_ref name;
 
@@ -49,13 +54,19 @@ struct ast_struct {
 	struct str_ref *struct_field_names;
 };
 
+/* Enum (sum) type definition. */
 struct ast_enum {
 	struct str_ref name;
 
 	size_t variant_count;
 	struct ast_struct *variants;
+	struct str_ref *variant_names;
 };
 
+/* Trait definition.
+ *
+ * Traits contains list of "interface functions", and types implementing the
+ * trait can be called with the function. */
 struct ast_trait {
 	struct str_ref name;
 
@@ -63,27 +74,36 @@ struct ast_trait {
 	struct ast_fn *fns;
 };
 
+/* Implement functions or a trait for a type. */
 struct ast_impl {
-	struct ast_struct *impl_for;
-	struct ast_trait *impl;
+	/* TODO: represent types */
+	/* struct str_ref impl_for; */
+	/* struct str_ref trait; */
 
 	size_t fn_count;
 	struct ast_fn *fns;
 };
 
+/* Function declaration or definition. */
 struct ast_fn {
 	struct str_ref name;
 
 	size_t param_count;
 	struct str_ref *param_names;
+
+	/* Optional function definition. */
+	struct ast_expr_block *opt_body;
 };
 
+/* Variable declaration or definition. */
 struct ast_let {
 	struct str_ref name;
 
+	/* Optional variable initialization. */
 	struct ast_expr *opt_value;
 };
 
+/* Statement in a block. */
 struct ast_stmt {
 	enum ast_stmt_kind {
 		AST_STMT_NONE,
@@ -97,14 +117,22 @@ struct ast_stmt {
 	} data;
 };
 
+/* Expression that return a value. */
 struct ast_expr {
 	enum ast_expr_kind {
+		/* operators */
 		AST_EXPR_BINARY_OP,
 		AST_EXPR_UNARY_OP,
+
+		/* block expressions */
 		AST_EXPR_IF,
 		AST_EXPR_WHILE,
 		AST_EXPR_BLOCK,
-		AST_EXPR_CONSTANT,
+
+		/* primary syntax elements */
+		AST_EXPR_INTEGER,
+		AST_EXPR_NUMBER,
+		AST_EXPR_BOOLEAN,
 		AST_EXPR_STR_LITERAL,
 		AST_EXPR_VARIABLE,
 	} kind;
@@ -183,7 +211,11 @@ struct ast_expr {
 			struct ast_expr *opt_return_value;
 		} *block;
 
-		struct val constant;
+		Lw_number_t number;
+
+		Lw_integer_t integer;
+
+		bool boolean;
 
 		struct str_ref str_literal;
 
