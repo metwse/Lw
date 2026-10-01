@@ -15,22 +15,22 @@
 
 
 static struct ast_expr *parse_expr(struct rdesc_node);
+static struct ast_expr_block *parse_expr_block(struct rdesc_node);
 static struct ast_expr_if *parse_expr_if(struct rdesc_node);
 void parse_expr_recursive(struct rdesc_node, struct ast_expr *);
 static struct ast_expr_while *parse_expr_while(struct rdesc_node);
-static struct ast_block_expr *parse_expr_block(struct rdesc_node);
 
 static struct ast_item *parse_item(struct rdesc_node);
 static struct ast_let *parse_let(struct rdesc_node);
 static struct ast_stmt *parse_stmt(struct rdesc_node);
 
 
-static struct ast_block_expr *parse_expr_block(struct rdesc_node n _unused)
+static struct ast_expr_block *parse_expr_block(struct rdesc_node n _unused)
 {
-	struct ast_block_expr *block_expr = xmalloc(sizeof(struct ast_block_expr));
+	struct ast_expr_block *expr_block = xmalloc(sizeof(struct ast_expr_block));
 	size_t item_count = 0;
 
-#define traverse_block_expr(item, expr) do { \
+#define traverse_expr_block(item, expr) do { \
 	struct rdesc_node cur = rchild(n, 1); \
 	struct rdesc_node item_node _unused; \
 	struct rdesc_node expr_node _unused; \
@@ -62,17 +62,17 @@ static struct ast_block_expr *parse_expr_block(struct rdesc_node n _unused)
 	} \
 } while (0)
 
-	traverse_block_expr(item_count++, ((void) 0));
+	traverse_expr_block(item_count++, ((void) 0));
 
-	block_expr->items = xmalloc(sizeof(struct ast_item *) * item_count);
-	block_expr->item_count = item_count;
-	block_expr->opt_return_value = NULL;
+	expr_block->items = xmalloc(sizeof(struct ast_item *) * item_count);
+	expr_block->item_count = item_count;
+	expr_block->opt_return_value = NULL;
 
 	size_t i = 0;
-	traverse_block_expr(block_expr->items[i++] = parse_item(item_node),
-			    block_expr->opt_return_value = parse_expr(expr_node));
+	traverse_expr_block(expr_block->items[i++] = parse_item(item_node),
+			    expr_block->opt_return_value = parse_expr(expr_node));
 
-	return block_expr;
+	return expr_block;
 }
 
 /* Parse NT_EXPR, NT_EXPR_WITHOUT_BLOCK, or NT_EXPR_WITH_BLOCK as ast_exr. */
@@ -99,6 +99,11 @@ static struct ast_expr *parse_expr(struct rdesc_node n)
 		case NT_EXPR_WHILE:
 			expr->kind = AST_EXPR_WHILE;
 			expr->data.while_expr = parse_expr_while(rchild(n, 0));
+			break;
+
+		case NT_BLOCK:
+			expr->kind = AST_EXPR_BLOCK;
+			expr->data.block = parse_expr_block(rchild(n, 0));
 			break;
 		}
 
@@ -355,20 +360,17 @@ static struct ast_stmt *parse_stmt(struct rdesc_node n)
 			parse_expr(rchild(rchild(n, 0), 0));
 		break;
 
-	case 2:
+	case 2: {
+		n = rchild(n, 0);  /* "return" <optexpr> ";" */
 		stmt->kind = AST_STMT_RETURN;
-		if (ralt_idx(rchild(rchild(n, 0), 1)) == 0) {
-			stmt->data.opt_return_value =
-				parse_expr(rchild(rchild(n, 0), 0));
+		if (ralt_idx(rchild(n, 1)) == 0) {
+			stmt->data.return_opt_value =
+				parse_expr(rchild(rchild(n, 1), 0));
 		} else {
-			stmt->data.opt_return_value = NULL;
+			stmt->data.return_opt_value = NULL;
 		}
 		break;
-
-	case 3:
-		stmt->kind = AST_STMT_BLOCK;
-		stmt->data.block = parse_expr_block(rchild(n, 0));
-		break;
+	}
 	}
 
 	return stmt;

@@ -9,41 +9,48 @@
 
 
 #define print(...) do { \
-		fprintf(out, "%*s", indent * 4, ""); \
-		print1(__VA_ARGS__); \
-	} while (0)
-#define print1(...) do { \
 		fprintf(out, __VA_ARGS__); \
 	} while (0)
+#define print_indented(...) do { \
+		print_indent; \
+		print(__VA_ARGS__); \
+	} while (0)
+#define print_indent do { \
+		fprintf(out, "%*s", indent * 4, ""); \
+	} while (0)
 
-#define define_printer(name) \
-	static void print_ ## name(FILE *out _unused, \
-				   int indent _unused, \
-				   const void *ast_node _unused)
+#define define_printer(ty) \
+	static void print_ ## ty(FILE *out _unused, \
+				 int indent _unused, \
+				 const struct ast_ ## ty *ty _unused)
+#define define_printer2(ty, name) \
+	static void print_ ## ty(FILE *out _unused, \
+				 int indent _unused, \
+				 const struct ast_ ## ty *name _unused)
 #define call_printer(fn, ast_node) print_ ## fn(out, indent, ast_node)
 #define cast(ty) const struct ast_ ## ty *ty = (const struct ast_ ## ty *) ast_node;
 #define cast2(ty, name) const struct ast_ ## ty *name = (const struct ast_ ## ty *) ast_node;
 
 
-define_printer(struct);
-define_printer(enum);
+define_printer2(struct, struct_item);
+define_printer2(enum, enum_item);
 define_printer(trait);
 define_printer(impl);
 define_printer(fn);
 define_printer(let);
+define_printer(expr_block);
 define_printer(expr_if);
 define_printer(expr_while);
 define_printer(expr);
-define_printer(block_expr);
 define_printer(stmt);
 define_printer(item);
 
 
-define_printer(struct)
+define_printer2(struct, struct_item)
 {
 }
 
-define_printer(enum)
+define_printer2(enum, enum_item)
 {
 }
 
@@ -63,52 +70,71 @@ define_printer(let)
 {
 }
 
-define_printer(expr_if)
+define_printer2(expr_block, block)
 {
-	cast2(expr_if, if_expr);
+	print("block: {\n");
+	indent++;
+
+	for (size_t i = 0; i < block->item_count; i++) {
+		print_indented("(%zu) ", i);
+		call_printer(item, block->items[i]);
+	}
+
+	if (block->opt_return_value != NULL) {
+		print_indented("(return) ");
+		call_printer(expr, block->opt_return_value);;
+	}
+
+	indent--;
+	print_indented("}\n");
+}
+
+
+define_printer2(expr_if, if_expr)
+{
 	print("if: {\n");
 	indent++;
 
-	print("(cond) ");
+	print_indented("(cond) ");
 	call_printer(expr, if_expr->cond);
-	print("(then) ");
-	call_printer(block_expr, if_expr->then);
+	print_indented("(then) ");
+	call_printer(expr_block, if_expr->then);
 	switch (if_expr->rest_kind) {
 	case AST_EXPR_IF_NONE:
 		break;
 
 	case AST_EXPR_IF_ELSE:
-		print("(else) ");
-		call_printer(block_expr, if_expr->rest_data.else_block);
+		print_indented("(else) ");
+		call_printer(expr_block, if_expr->rest_data.else_block);
 		break;
 
 	case AST_EXPR_IF_ELSE_IF:
-		print("(else if)\n");
+		print_indented("(else) ");
 		call_printer(expr_if, if_expr->rest_data.else_if);
 		break;
 	}
 
 	indent--;
+	print_indented("}\n");
 }
 
-define_printer(expr_while)
+define_printer2(expr_while, while_expr)
 {
-	cast2(expr_while, while_expr);
 	print("while: {\n");
 	indent++;
 
-	print("(cond) ");
+	print_indented("(cond) ");
 	call_printer(expr, while_expr->cond);
-	print("(do) ");
-	call_printer(block_expr, while_expr->block);
+	print_indented("(do) ");
+	call_printer(expr_block, while_expr->block);
 
 	indent--;
+	print_indented("}\n");
 }
 
 define_printer(expr)
 {
-	cast(expr);
-	print1("expr: {\n");
+	print("expr: {\n");
 	indent++;
 
 	const char *binary_op_name_map[] = {
@@ -140,44 +166,52 @@ define_printer(expr)
 
 	switch (expr->kind) {
 	case AST_EXPR_BINARY_OP:
-		print("binary op (%s)\n",
-		      binary_op_name_map[expr->data.binary_op->kind]);
-		print("(lhs) ");
+		print_indented("binary op (%s)\n",
+			       binary_op_name_map[expr->data.binary_op->kind]);
+		print_indented("(lhs) ");
 		call_printer(expr, expr->data.binary_op->lhs);
-		print("(rhs) ");
+		print_indented("(rhs) ");
 		call_printer(expr, expr->data.binary_op->rhs);
 		break;
 
 	case AST_EXPR_UNARY_OP:
-		print("unary op (%s)\n",
-		      unary_op_name_map[expr->data.unary_op->kind]);
-		print(" ");
+		print_indented("unary op (%s)\n",
+			       unary_op_name_map[expr->data.unary_op->kind]);
+		print_indented("(expr) ");
 		call_printer(expr, expr->data.unary_op->expr);
 		break;
 
+	case AST_EXPR_BLOCK:
+		print_indent;
+		call_printer(expr_block, expr->data.block);
+		break;
+
 	case AST_EXPR_IF:
+		print_indent;
 		call_printer(expr_if, expr->data.if_expr);
 		break;
 
 	case AST_EXPR_WHILE:
+		print_indent;
 		call_printer(expr_while, expr->data.while_expr);
 		break;
 
 	case AST_EXPR_CONSTANT:
 		switch (expr->data.constant.type) {
 		case VAL_NUMBER:
-			print("(number) %"Lw_number_fmt"\n",
-					expr->data.constant.val.number);
+			print_indented("(number) %"Lw_number_fmt"\n",
+				       expr->data.constant.val.number);
 			break;
 
 		case VAL_INTEGER:
-			print("(integer) %"Lw_integer_fmt"\n",
-					expr->data.constant.val.integer);
+			print_indented("(integer) %"Lw_integer_fmt"\n",
+				       expr->data.constant.val.integer);
 			break;
 
 		case VAL_BOOL:
-			print("(boolean) %s\n", expr->data.constant.val.boolean ?
-					"true" : "false");
+			print_indented("(boolean) %s\n",
+				       expr->data.constant.val.boolean ?
+						"true" : "false");
 			break;
 
 		_unreachable_default;
@@ -189,7 +223,7 @@ define_printer(expr)
 		size_t len;
 
 		str_ref_get_chars(expr->data.str_literal, &chars, &len);
-		print("(string literal) %*s\n", (int) len, chars);
+		print_indented("(string literal) %.*s\n", (int) len, chars);
 		break;
 	}
 
@@ -198,73 +232,46 @@ define_printer(expr)
 		size_t len;
 
 		str_ref_get_chars(expr->data.str_literal, &chars, &len);
-		print("(name) %*s\n", (int) len, chars);
+		print_indented("(name) %.*s\n", (int) len, chars);
 		break;
 	}
 	}
 
 	indent--;
-	print("}\n");
-}
-
-define_printer(block_expr)
-{
-	cast(block_expr);
-	print1("block_expr: {\n");
-	indent++;
-
-	for (size_t i = 0; i < block_expr->item_count; i++) {
-		print("(%zu) ", i);
-		call_printer(item, block_expr->items[i]);
-	}
-
-	if (block_expr->opt_return_value != NULL) {
-		print("(return) ");
-		call_printer(expr, block_expr->opt_return_value);;
-	}
-
-	indent--;
-	print("}\n");
+	print_indented("}\n");
 }
 
 define_printer(stmt)
 {
-	cast(stmt);
 	print("stmt: {\n");
 	indent++;
 
 	switch (stmt->kind) {
 	case AST_STMT_NONE:
-		print("noop\n");
+		print_indented("noop\n");
 		break;
 
 	case AST_STMT_RETURN:
-		print("return ");
-		if (stmt->data.opt_return_value != NULL) {
-			call_printer(expr, stmt->data.opt_return_value);
-		} else {
+		print_indented("return ");
+		if (stmt->data.return_opt_value != NULL)
+			call_printer(expr, stmt->data.return_opt_value);
+		else
 			print("()\n");
-		}
 		break;
 
 	case AST_STMT_EXPR:
-		print("(discarded result) ");
+		print_indented("(discarded result) ");
 		call_printer(expr, stmt->data.expr_discard_result);
-		break;
-
-	case AST_STMT_BLOCK:
-		call_printer(block_expr, stmt->data.block);
 		break;
 	}
 
 	indent--;
-	print("}\n");
+	print_indented("}\n");
 }
 
 define_printer(item)
 {
-	cast(item);
-	print1("ast_item:%d {\n", item->line);
+	print("ast_item:%d {\n", item->line);
 	indent++;
 
 	switch (item->kind) {
@@ -284,15 +291,17 @@ define_printer(item)
 		call_printer(fn, item->data.fn);
 		break;
 	case AST_ITEM_LET:
+		print_indent;
 		call_printer(let, item->data.let);
 		break;
 	case AST_ITEM_STMT:
+		print_indent;
 		call_printer(stmt, item->data.stmt);
 		break;
 	}
 
 	indent--;
-	print("}\n");
+	print_indented("}\n");
 }
 
 void ast_pretty_print(FILE *out, const struct ast_item *item)

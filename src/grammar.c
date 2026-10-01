@@ -138,7 +138,6 @@ alt	TK(IMPL), TK(IDENT), NT(OPTGENERIC_PARAMS)
 	TK(SEMI)
 alt	NT(STMT_EXPR)
 alt	NT(STMT_RETURN)
-alt	NT(BLOCK)
 ),
 /* <stmt_expr> ::= */ r(
 	NT(EXPR_WITH_BLOCK)
@@ -165,6 +164,7 @@ alt	NT(EXPR_WITHOUT_BLOCK)
 /* <expr_with_block> ::= */ r(
 	NT(EXPR_IF)
 alt	NT(EXPR_WHILE)
+alt	NT(BLOCK)
 ),
 /* <expr_without_block> ::= */ r(
 	NT(EXPR_ASGN)

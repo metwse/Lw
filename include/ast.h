@@ -89,22 +89,12 @@ struct ast_stmt {
 		AST_STMT_NONE,
 		AST_STMT_RETURN,
 		AST_STMT_EXPR,
-		AST_STMT_BLOCK,
 	} kind;
 
 	union ast_stmt_data {
-		struct ast_expr *opt_return_value;
+		struct ast_expr *return_opt_value;
 		struct ast_expr *expr_discard_result;
-		struct ast_block_expr *block;
 	} data;
-};
-
-struct ast_block_expr {
-	/* items excluding the return expression */
-	size_t item_count;
-	struct ast_item **items;
-
-	struct ast_expr *opt_return_value;
 };
 
 struct ast_expr {
@@ -113,6 +103,7 @@ struct ast_expr {
 		AST_EXPR_UNARY_OP,
 		AST_EXPR_IF,
 		AST_EXPR_WHILE,
+		AST_EXPR_BLOCK,
 		AST_EXPR_CONSTANT,
 		AST_EXPR_STR_LITERAL,
 		AST_EXPR_VARIABLE,
@@ -172,18 +163,25 @@ struct ast_expr {
 				AST_EXPR_IF_ELSE_IF,
 			} rest_kind;
 			union ast_expr_if_rest_data {
-				struct ast_block_expr *else_block;
+				struct ast_expr_block *else_block;
 				struct ast_expr_if *else_if;
 			} rest_data;
 			struct ast_expr *cond;
-			struct ast_block_expr *then;
+			struct ast_expr_block *then;
 		} *if_expr;
 
 		struct ast_expr_while {
 			struct ast_expr *cond;
-			struct ast_block_expr *block;
+			struct ast_expr_block *block;
 		} *while_expr;
 
+		struct ast_expr_block {
+			/* items excluding the return expression */
+			size_t item_count;
+			struct ast_item **items;
+
+			struct ast_expr *opt_return_value;
+		} *block;
 
 		struct val constant;
 
